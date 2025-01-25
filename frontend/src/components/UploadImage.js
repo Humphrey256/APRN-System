@@ -1,29 +1,55 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import axios from 'axios';
+import Results from './Results';
 
 const UploadImage = () => {
-  const [file, setFile] = useState(null);
+  const videoRef = useRef(null);
   const [loading, setLoading] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [processedImage, setProcessedImage] = useState(null);
+  const [plateNumber, setPlateNumber] = useState(null);
+  const [offenses, setOffenses] = useState([]);
 
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
+  const startCamera = () => {
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        videoRef.current.srcObject = stream;
+      })
+      .catch(err => {
+        console.error("Error accessing camera: ", err);
+      });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!file) return;
+  const captureImage = () => {
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = canvas.toDataURL('image/png');
+    setCapturedImage(imageData);
+    // Stop the camera after capturing the image
+    video.srcObject.getTracks().forEach(track => track.stop());
+  };
+
+  const handleSubmit = async () => {
+    if (!capturedImage) return;
 
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('image', capturedImage);
 
     try {
       setLoading(true);
       const response = await axios.post('http://localhost:5000/api/upload', formData);
       console.log(response.data);
-      alert('Image uploaded successfully!');
+      setProcessedImage(response.data.processedImage);
+      setPlateNumber(response.data.plateNumber);
+      setOffenses(response.data.offenses);
+      alert('Image uploaded and processed successfully!');
     } catch (error) {
       console.error('Error uploading image:', error);
-      alert('Failed to upload image.');
+      alert('Failed to upload and process image.');
     } finally {
       setLoading(false);
     }
@@ -32,12 +58,26 @@ const UploadImage = () => {
   return (
     <div style={styles.container}>
       <h2>Upload Image</h2>
-      <form onSubmit={handleSubmit}>
-        <input type="file" onChange={handleFileChange} style={styles.input} />
-        <button type="submit" style={styles.button} disabled={loading}>
-          {loading ? 'Uploading...' : 'Upload'}
-        </button>
-      </form>
+      <div>
+        <button onClick={startCamera}>Start Camera</button>
+        <video ref={videoRef} autoPlay style={styles.video}></video>
+        <button onClick={captureImage}>Capture Image</button>
+      </div>
+      {capturedImage && (
+        <div>
+          <img src={capturedImage} alt="Captured" style={styles.capturedImage} />
+          <button onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Uploading...' : 'Upload'}
+          </button>
+        </div>
+      )}
+      {processedImage && (
+        <Results
+          processedImage={processedImage}
+          plateNumber={plateNumber}
+          offenses={offenses}
+        />
+      )}
     </div>
   );
 };
@@ -47,16 +87,15 @@ const styles = {
     textAlign: 'center',
     padding: '20px',
   },
-  input: {
-    margin: '10px 0',
+  video: {
+    width: '100%',
+    maxWidth: '600px',
+    margin: '20px 0',
   },
-  button: {
-    padding: '10px 20px',
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
+  capturedImage: {
+    width: '100%',
+    maxWidth: '600px',
+    margin: '20px 0',
   },
 };
 

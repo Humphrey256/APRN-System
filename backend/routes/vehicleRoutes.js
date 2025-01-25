@@ -1,11 +1,16 @@
 // routes/vehicle.js
 const express = require('express');
 const router = express.Router();
+const vehicleController = require('../controllers/vehicles');
 
-// Example route (add your own routes here)
-router.get('/', (req, res) => {
-    res.send('Vehicles route');
-});
+// Add a new vehicle
+router.post('/add', vehicleController.addVehicle);
+
+// Update vehicle details
+router.put('/update', vehicleController.updateVehicle);
+
+// Delete a vehicle
+router.delete('/delete', vehicleController.deleteVehicle);
 
 // Export the router
 module.exports = router;
